@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+Thumbs.db
+
+# 音源・解析データ・録音はリポジトリに含めない（著作権・容量のため）
+*.mp3
+*.m4a
+*.wav
+*.flac
+*.aac
+*.ogg
+*.tkt
