@@ -38,7 +38,7 @@
 │  解析ツール (Python + Gradio, ブラウザ UI)                                         │
 │   入力: 曲ファイル + 歌詞テキスト                                                 │
 │   1. ボーカル分離 (Demucs)                                                       │
-│   2. 音程抽出 (RMVPE) → ノート列化                                               │
+│   2. 音程抽出 (CREPE) → ノート列化                                               │
 │   3. 歌詞の行単位アライメント (stable-ts / Whisper)                               │
 │   出力: <曲名>.tkt  → Google ドライブの所定フォルダへ保存                          │
 └──────────────────────────────────────────────────────────────────────────────────┘
@@ -84,7 +84,7 @@ zip 形式。拡張子は `.tkt`。
 | P1 | 起動 | `start.bat` のダブルクリックで起動し、ブラウザで UI が開く | MVP |
 | P2 | 入力 | 曲ファイル（mp3 / m4a / wav / flac）のドラッグ＆ドロップ、歌詞テキストの貼り付け、曲名・アーティストの入力（ファイルのタグから自動入力） | MVP |
 | P3 | ボーカル分離 | Demucs（htdemucs）でボーカルと伴奏に分離する | MVP |
-| P4 | 音程抽出 | 分離ボーカルから RMVPE で f0 を抽出し、ノート列に量子化する（短すぎるノートの除去、近接ノートの結合） | MVP |
+| P4 | 音程抽出 | 分離ボーカルから CREPE（torchcrepe, full モデル）で f0 を抽出し、ノート列に量子化する（短すぎるノートの除去、近接ノートの結合） | MVP |
 | P5 | 歌詞アライメント | 入力した歌詞の各行（空行は区切り）をボーカル音声に強制アライメントし、行ごとの開始・終了時刻を推定する | MVP |
 | P6 | 進捗表示 | 処理の段階と進捗を表示する。CPU 処理なので 1 曲あたり 5〜15 分程度を想定 | MVP |
 | P7 | 出力 | `.tkt` を指定フォルダ（既定: Google ドライブ内 `tokaraoke/`）に保存する | MVP |
@@ -169,7 +169,9 @@ zip 形式。拡張子は `.tkt`。
 | 保存 | IndexedDB（Dexie.js） |
 | パッケージ読み込み | fflate（zip 展開） |
 | キー・テンポ変更（v1.1） | Rubber Band または SoundTouch の WebAssembly 版 |
-| 解析ツール | Python 3.11 / Gradio / Demucs / RMVPE / stable-ts（Whisper small, CPU） / ffmpeg |
+| 解析ツール | Python 3.12（uv で管理） / Gradio / Demucs（htdemucs） / torchcrepe / stable-ts（Whisper small, CPU） / ffmpeg（imageio-ffmpeg 同梱） |
+
+> M2 実装時の変更: 音程抽出は RMVPE ではなく CREPE（torchcrepe）を採用。pip で導入でき、モデル込みで配布されていて構成が単純なため。精度が足りなければ RMVPE への差し替えを検討する。
 | ホスティング | GitHub Pages（GitHub Actions で自動デプロイ） |
 
 ---

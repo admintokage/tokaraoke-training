@@ -13,3 +13,9 @@ Thumbs.db
 *.ogg
 *.tkt
 *.tsbuildinfo
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+analyzer/settings.json

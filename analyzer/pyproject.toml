@@ -1,0 +1,37 @@
+[project]
+name = "tokaraoke-analyzer"
+version = "0.1.0"
+description = "tokaraoke-training の PC 解析ツール: 曲から練習パッケージ (.tkt) を作る"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # torch と torchaudio はバージョンをそろえないと DLL 読み込みに失敗する
+    "torch>=2.6",
+    "torchaudio>=2.6",
+    "demucs",
+    "torchcrepe",
+    "stable-ts",
+    "gradio",
+    "mutagen",
+    "numpy",
+    "imageio-ffmpeg",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false
+
+# PyTorch は CPU 版 (GPU なしの PC 向け、ダウンロードも小さい)
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+torchaudio = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
