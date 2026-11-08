@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { PitchEngine } from '../audio/pitch-engine';
-import { freqToMidi, isBlackKey, midiToName } from '../audio/music';
+import { isBlackKey, midiToName } from '../audio/music';
 
 interface Props {
   engine: PitchEngine;
@@ -64,8 +64,8 @@ export function PitchGraph({ engine, seconds = 6 }: Props) {
       // 直近 1.5 秒の声の高さの中央値に、表示の中心をゆっくり寄せる
       const recent: number[] = [];
       for (let i = hist.length - 1; i >= 0 && hist[i].time > now - 1.5; i--) {
-        const f = hist[i].freq;
-        if (f) recent.push(freqToMidi(f));
+        const m = hist[i].midi;
+        if (m != null) recent.push(m);
       }
       if (recent.length > 5) {
         recent.sort((a, b) => a - b);
@@ -126,12 +126,12 @@ export function PitchGraph({ engine, seconds = 6 }: Props) {
       for (let i = 0; i < hist.length; i++) {
         const p = hist[i];
         if (p.time < t0 - 0.1) continue;
-        if (!p.freq) {
+        if (p.midi == null) {
           drawing = false;
           continue;
         }
         const x = xOf(p.time);
-        const y = yOf(freqToMidi(p.freq));
+        const y = yOf(p.midi);
         if (!drawing || p.time - prevT > GAP_SEC) g.moveTo(x, y);
         else g.lineTo(x, y);
         drawing = true;
@@ -142,7 +142,7 @@ export function PitchGraph({ engine, seconds = 6 }: Props) {
 
       // 最新の点 (声が出ている間だけ)
       const latest = hist[hist.length - 1];
-      if (last && latest?.freq && now - latest.time < 0.2) {
+      if (last && latest?.midi != null && now - latest.time < 0.2) {
         g.fillStyle = C.voice;
         g.beginPath();
         g.arc(last.x, last.y, 6, 0, Math.PI * 2);

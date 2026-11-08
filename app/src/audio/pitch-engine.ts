@@ -1,7 +1,8 @@
 import processorUrl from './pitch-processor.ts?worker&url';
 import type { PitchMessage } from './pitch-processor';
+import { PitchTracker, type TrackedPitch } from './pitch-tracker';
 
-export type { PitchMessage };
+export type { PitchMessage, TrackedPitch };
 
 export type SourceKind = 'mic' | 'test';
 
@@ -21,18 +22,19 @@ const HISTORY_SEC = 30;
  */
 export class PitchEngine {
   ctx: AudioContext | null = null;
-  readonly history: PitchMessage[] = [];
+  readonly history: TrackedPitch[] = [];
+  private readonly tracker = new PitchTracker();
   private node: AudioWorkletNode | null = null;
   private stream: MediaStream | null = null;
   private sourceNodes: AudioNode[] = [];
-  private listeners = new Set<(m: PitchMessage) => void>();
+  private listeners = new Set<(m: TrackedPitch) => void>();
 
   /** 現在の AudioContext 時刻 (秒) */
   now(): number {
     return this.ctx?.currentTime ?? 0;
   }
 
-  onPitch(fn: (m: PitchMessage) => void): () => void {
+  onPitch(fn: (m: TrackedPitch) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
@@ -40,6 +42,7 @@ export class PitchEngine {
   /** 必ずユーザー操作 (タップ) のイベントハンドラ内から呼ぶこと */
   async start(kind: SourceKind): Promise<EngineInfo> {
     await this.stop();
+    this.tracker.reset();
 
     // iOS: マナーモードでも音を出し、マイクと再生を同時に使えるようにする (Safari 16.4+)
     const nav = navigator as Navigator & { audioSession?: { type: string } };
@@ -159,7 +162,8 @@ export class PitchEngine {
     this.sourceNodes.push(osc, vib, vibDepth, lp, env, monitor);
   }
 
-  private push(m: PitchMessage) {
+  private push(raw: PitchMessage) {
+    const m = this.tracker.push(raw);
     this.history.push(m);
     const cutoff = m.time - HISTORY_SEC;
     let drop = 0;

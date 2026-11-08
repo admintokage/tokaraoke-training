@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { PitchEngine, type EngineInfo, type PitchMessage, type SourceKind } from './audio/pitch-engine';
-import { centsOff, freqToMidi, midiToName, midiToNameJa } from './audio/music';
+import { PitchEngine, type EngineInfo, type SourceKind, type TrackedPitch } from './audio/pitch-engine';
+import { midiToFreq, midiToName, midiToNameJa } from './audio/music';
 import { PitchGraph } from './ui/PitchGraph';
 
 type Status = 'idle' | 'starting' | 'running' | 'error';
@@ -11,8 +11,8 @@ export function App() {
   const [source, setSource] = useState<SourceKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<EngineInfo | null>(null);
-  const [reading, setReading] = useState<PitchMessage | null>(null);
-  const latest = useRef<PitchMessage | null>(null);
+  const [reading, setReading] = useState<TrackedPitch | null>(null);
+  const latest = useRef<TrackedPitch | null>(null);
 
   // 数値表示は 15fps 程度に間引いて更新する
   useEffect(() => {
@@ -46,9 +46,11 @@ export function App() {
     setStatus('idle');
   };
 
-  const voiced = reading?.freq != null && engine.now() - reading.time < 0.25;
-  const midi = voiced ? freqToMidi(reading!.freq!) : null;
-  const cents = midi != null ? centsOff(midi) : 0;
+  const voiced = reading?.note != null && reading.smoothMidi != null && engine.now() - reading.time < 0.25;
+  const midi = voiced ? reading!.note : null;
+  const smoothMidi = voiced ? reading!.smoothMidi! : null;
+  const cents =
+    midi != null && smoothMidi != null ? Math.max(-50, Math.min(50, Math.round((smoothMidi - midi) * 100))) : 0;
   const levelDb = reading ? 20 * Math.log10(Math.max(reading.rms, 1e-5)) : -100;
 
   return (
@@ -80,7 +82,7 @@ export function App() {
           </div>
         </div>
         <div className="meta">
-          <span>{voiced ? `${reading!.freq!.toFixed(1)} Hz` : '— Hz'}</span>
+          <span>{smoothMidi != null ? `${midiToFreq(smoothMidi).toFixed(1)} Hz` : '— Hz'}</span>
           <span className="level">
             <span className="level-bar" style={{ width: `${Math.max(0, Math.min(100, (levelDb + 60) * (100 / 60)))}%` }} />
           </span>
