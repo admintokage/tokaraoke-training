@@ -32,13 +32,14 @@ export async function listSongs(): Promise<SongSummary[]> {
   }));
 }
 
-/** .tkt を取り込む。同じ曲 (曲名・アーティスト・作成日時が同じ) は上書きし、ベストスコアは引き継ぐ */
+/**
+ * .tkt を取り込む。同じ曲 (曲名・アーティストが同じ) は上書きし、ベストスコアは引き継ぐ。
+ * 歌詞を直して解析し直したファイルを取り込み直す使い方を想定している。
+ */
 export async function importTkt(file: Blob): Promise<SongRecord> {
   const t = parseTkt(new Uint8Array(await file.arrayBuffer()));
   const m = t.manifest;
-  const same = await db.songs
-    .filter((s) => s.title === m.title && s.artist === m.artist && s.createdAt === m.createdAt)
-    .first();
+  const same = await db.songs.filter((s) => s.title === m.title && s.artist === m.artist).first();
   const song: SongRecord = {
     id: same?.id ?? crypto.randomUUID(),
     title: m.title,

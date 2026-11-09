@@ -57,7 +57,8 @@ def analyze(audio_path, title, artist, lyrics_text, out_dir, progress=gr.Progres
         f"- 処理時間: {mins}分{secs:02d}秒（"
         + "、".join(f"{k} {v:.0f}秒" for k, v in res.timings.items())
         + "）\n\n"
-        "iPhone では、練習アプリの「取り込み」からこのファイルを選んでください（M3 で対応予定）。"
+        "iPhone では、練習アプリの「＋ .tkt を取り込む」からこのファイルを選んでください。"
+        "同じ曲名のファイルを取り込むと、前の分を置き換えます（ベストスコアは残ります）。"
     )
     rows = [
         [_fmt(l["start"]), _fmt(l["end"]), ("⚠ " if l.get("aligned") is False else "") + l["text"]]
@@ -65,7 +66,20 @@ def analyze(audio_path, title, artist, lyrics_text, out_dir, progress=gr.Progres
     ]
     if any(l.get("aligned") is False for l in res.lyrics):
         summary += "\n\n⚠ の付いた行はうまく合わせられなかったため、おおよその位置に並べています。"
+    long_lines = [i + 1 for i, l in enumerate(res.lyrics) if l["end"] - l["start"] > LONG_LINE_SEC]
+    if long_lines:
+        rows = [
+            [r[0], r[1], ("⏱ " if i + 1 in long_lines else "") + r[2]] for i, r in enumerate(rows)
+        ]
+        summary += (
+            f"\n\n⏱ {', '.join(map(str, long_lines))} 行目が {LONG_LINE_SEC} 秒以上続いています。"
+            "**歌詞が足りない可能性があります**（くり返しのサビを省略していないか確認してください）。"
+            "歌われる順にすべての行を貼り付けて、もう一度解析してください。"
+        )
     return summary, str(res.path), rows
+
+
+LONG_LINE_SEC = 15  # 1 行がこれより長いと歌詞の抜けを疑う
 
 
 def _fmt(sec: float) -> str:
@@ -92,7 +106,7 @@ def build() -> gr.Blocks:
                     title = gr.Textbox(label="曲名")
                     artist = gr.Textbox(label="アーティスト")
                 lyrics = gr.Textbox(
-                    label="② 歌詞（1行ずつ。空行は無視されます。なくても解析できます）",
+                    label="② 歌詞（1行ずつ、歌われる順にすべて。くり返しのサビも省略しない。空行は無視。なくても解析できます）",
                     lines=14,
                     placeholder="ここに歌詞を貼り付け",
                 )
