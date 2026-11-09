@@ -1,168 +1,32 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { PitchEngine, type EngineInfo, type SourceKind, type TrackedPitch } from './audio/pitch-engine';
-import { midiToFreq, midiToName, midiToNameJa } from './audio/music';
-import { PitchGraph } from './ui/PitchGraph';
+import { useEffect, useState } from 'react';
+import { Library } from './screens/Library';
+import { MicTest } from './screens/MicTest';
+import { Practice } from './screens/Practice';
 
-type Status = 'idle' | 'starting' | 'running' | 'error';
+type Route = { name: 'library' } | { name: 'practice'; id: string } | { name: 'mic' };
+
+/** URL の # で画面を切り替える (iPhone のスワイプで戻れるように) */
+function parseRoute(hash: string): Route {
+  const m = hash.match(/^#\/song\/([\w-]+)/);
+  if (m) return { name: 'practice', id: m[1] };
+  if (hash.startsWith('#/mic')) return { name: 'mic' };
+  return { name: 'library' };
+}
 
 export function App() {
-  const engine = useMemo(() => new PitchEngine(), []);
-  const [status, setStatus] = useState<Status>('idle');
-  const [source, setSource] = useState<SourceKind | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<EngineInfo | null>(null);
-  const [reading, setReading] = useState<TrackedPitch | null>(null);
-  const latest = useRef<TrackedPitch | null>(null);
-
-  // 数値表示は 15fps 程度に間引いて更新する
+  const [route, setRoute] = useState(() => parseRoute(location.hash));
   useEffect(() => {
-    const off = engine.onPitch((m) => (latest.current = m));
-    const id = window.setInterval(() => setReading(latest.current), 66);
-    return () => {
-      off();
-      window.clearInterval(id);
-    };
-  }, [engine]);
+    const on = () => setRoute(parseRoute(location.hash));
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
 
-  useEffect(() => () => void engine.stop(), [engine]);
-
-  const start = async (kind: SourceKind) => {
-    setError(null);
-    setStatus('starting');
-    try {
-      setInfo(await engine.start(kind));
-      setSource(kind);
-      setStatus('running');
-    } catch (e) {
-      setStatus('error');
-      setSource(null);
-      setError(describeError(e));
-    }
-  };
-
-  const stop = async () => {
-    await engine.stop();
-    setSource(null);
-    setStatus('idle');
-  };
-
-  const voiced = reading?.note != null && reading.smoothMidi != null && engine.now() - reading.time < 0.25;
-  const midi = voiced ? reading!.note : null;
-  const smoothMidi = voiced ? reading!.smoothMidi! : null;
-  const cents =
-    midi != null && smoothMidi != null ? Math.max(-50, Math.min(50, Math.round((smoothMidi - midi) * 100))) : 0;
-  const levelDb = reading ? 20 * Math.log10(Math.max(reading.rms, 1e-5)) : -100;
-
-  return (
-    <div className="app">
-      <header className="topbar">
-        <h1>tokaraoke-training</h1>
-        <span className="badge">M1 音程モニター</span>
-      </header>
-
-      <section className="readout" aria-live="off">
-        <div className="note">
-          <span className="note-name">{midi != null ? midiToName(midi) : '—'}</span>
-          <span className="note-ja">{midi != null ? midiToNameJa(midi) : ''}</span>
-        </div>
-        <div className="cents">
-          <div className="cents-track">
-            <div className="cents-center" />
-            {midi != null && (
-              <div
-                className={`cents-marker ${Math.abs(cents) <= 15 ? 'good' : ''}`}
-                style={{ left: `${50 + cents}%` }}
-              />
-            )}
-          </div>
-          <div className="cents-labels">
-            <span>♭ 低い</span>
-            <span>{midi != null ? `${cents > 0 ? '+' : ''}${cents} セント` : ''}</span>
-            <span>高い ♯</span>
-          </div>
-        </div>
-        <div className="meta">
-          <span>{smoothMidi != null ? `${midiToFreq(smoothMidi).toFixed(1)} Hz` : '— Hz'}</span>
-          <span className="level">
-            <span className="level-bar" style={{ width: `${Math.max(0, Math.min(100, (levelDb + 60) * (100 / 60)))}%` }} />
-          </span>
-        </div>
-      </section>
-
-      <main className="graph-wrap">
-        <PitchGraph engine={engine} />
-        {status !== 'running' && (
-          <div className="overlay">
-            <p>
-              「マイク開始」を押して声を出すと、
-              <br />
-              音程がグラフに表示されます。
-            </p>
-            <p className="hint">🎧 イヤホンを使い、静かな場所で試してください</p>
-          </div>
-        )}
-      </main>
-
-      {error && <p className="error">{error}</p>}
-
-      <footer className="controls">
-        {status === 'running' ? (
-          <button className="primary" onClick={stop}>
-            ■ 停止{source === 'test' ? '（テスト信号）' : ''}
-          </button>
-        ) : (
-          <button className="primary" onClick={() => start('mic')} disabled={status === 'starting'}>
-            🎤 マイク開始
-          </button>
-        )}
-        <button className="secondary" onClick={() => start('test')} disabled={status === 'starting'}>
-          テスト信号
-        </button>
-      </footer>
-
-      {info && (
-        <details className="debug">
-          <summary>技術情報</summary>
-          <dl>
-            <dt>サンプルレート</dt>
-            <dd>{info.sampleRate} Hz</dd>
-            <dt>入力遅延 (baseLatency)</dt>
-            <dd>{fmtMs(info.baseLatency)}</dd>
-            <dt>出力遅延 (outputLatency)</dt>
-            <dd>{fmtMs(info.outputLatency)}</dd>
-            {info.micSettings && (
-              <>
-                <dt>エコー除去 / ノイズ抑制 / 自動音量</dt>
-                <dd>
-                  {onOff(info.micSettings.echoCancellation)} / {onOff(info.micSettings.noiseSuppression)} /{' '}
-                  {onOff(info.micSettings.autoGainControl)}
-                </dd>
-              </>
-            )}
-          </dl>
-        </details>
-      )}
-    </div>
-  );
-}
-
-function fmtMs(sec: number | null) {
-  return sec == null ? '不明' : `${(sec * 1000).toFixed(1)} ms`;
-}
-
-function onOff(v: boolean | string | undefined) {
-  if (v == null) return '不明';
-  if (typeof v === 'string') return v;
-  return v ? 'ON' : 'OFF';
-}
-
-function describeError(e: unknown): string {
-  if (e instanceof DOMException) {
-    if (e.name === 'NotAllowedError') {
-      return 'マイクの使用が許可されませんでした。設定 › Safari › マイク（またはアドレスバーの「ぁあ」› Webサイトの設定）で許可してください。';
-    }
-    if (e.name === 'NotFoundError') return 'マイクが見つかりません。';
-    if (e.name === 'NotReadableError') return 'マイクを開けませんでした。ほかのアプリが使用中の可能性があります。';
+  switch (route.name) {
+    case 'practice':
+      return <Practice key={route.id} songId={route.id} />;
+    case 'mic':
+      return <MicTest />;
+    default:
+      return <Library />;
   }
-  return `開始できませんでした: ${e instanceof Error ? e.message : String(e)}`;
 }

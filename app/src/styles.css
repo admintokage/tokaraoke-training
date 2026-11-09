@@ -11,6 +11,9 @@
   --graph-line: #232835;
   --graph-line-c: #3a4256;
   --graph-now: rgba(255, 255, 255, 0.35);
+  --voice-dim: rgba(255, 92, 138, 0.55);
+  --ref-bar: #3d5a8a;
+  --ref-bar-active: #6d9bea;
   color-scheme: dark;
 }
 
@@ -252,4 +255,317 @@ button.secondary {
 .debug dd {
   margin: 0;
   color: var(--text);
+}
+
+/* ---------- 共通 ---------- */
+a {
+  color: inherit;
+}
+
+.back {
+  text-decoration: none;
+  color: var(--text-dim);
+  font-size: 15px;
+  padding: 6px 8px 6px 0;
+  white-space: nowrap;
+}
+
+.badge.link {
+  text-decoration: none;
+}
+
+.ok {
+  color: var(--good);
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+button.icon {
+  background: transparent;
+  padding: 10px;
+  font-size: 18px;
+}
+
+/* ---------- 曲ライブラリ ---------- */
+.library {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.empty {
+  background: var(--surface);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 8px;
+  line-height: 1.7;
+  font-size: 14px;
+}
+
+.empty-title {
+  font-weight: 700;
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+
+.empty ol {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-dim);
+}
+
+.song-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.song-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--graph-line);
+}
+
+.song {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 0;
+  text-decoration: none;
+}
+
+.song-title {
+  font-weight: 700;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-sub {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.song-best {
+  font-size: 13px;
+  color: var(--text-dim);
+  min-width: 48px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.song-best b {
+  font-size: 18px;
+  color: var(--text);
+}
+
+/* ---------- 練習画面 ---------- */
+.practice .topbar {
+  gap: 12px;
+}
+
+.title-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.title-block .song-title {
+  font-size: 15px;
+}
+
+.live-score {
+  font-size: 13px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-score b {
+  font-size: 24px;
+  color: var(--accent);
+}
+
+.dim {
+  color: var(--text-dim);
+}
+
+.overlay.soft {
+  background: rgba(17, 19, 24, 0.55);
+  pointer-events: none;
+}
+
+.lyrics {
+  padding: 10px 2px 4px;
+  min-height: 70px;
+}
+
+.lyric-line {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lyric-line.current {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.lyric-line.current.rough {
+  opacity: 0.75;
+}
+
+.lyric-line.next {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+.seek {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.seek input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+button.toggle {
+  font-size: 12px;
+  line-height: 1.3;
+  padding: 8px 12px;
+  min-width: 64px;
+}
+
+button.toggle.on {
+  outline: 1px solid var(--ref-bar-active);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+  padding-bottom: 12px;
+}
+
+.option input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+/* ---------- 結果 ---------- */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 10;
+}
+
+.modal-body {
+  width: 100%;
+  max-width: 560px;
+  max-height: 85%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 18px calc(16px + env(safe-area-inset-bottom));
+}
+
+.result-label {
+  margin: 0;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.result-score {
+  margin: 4px 0;
+  text-align: center;
+  font-size: 18px;
+}
+
+.result-score b {
+  font-size: 56px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.result-best {
+  margin: 0 0 8px;
+  text-align: center;
+  color: var(--good);
+  font-weight: 700;
+}
+
+.line-scores {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.line-scores li {
+  display: grid;
+  grid-template-columns: 64px 32px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.line-scores .bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--graph-line);
+  overflow: hidden;
+}
+
+.line-scores .bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.line-scores .bar span.good {
+  background: var(--good);
+}
+
+.line-scores .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.line-scores .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 8px;
 }

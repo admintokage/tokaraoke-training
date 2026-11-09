@@ -1,10 +1,11 @@
-import processorUrl from './pitch-processor.ts?worker&url';
 import type { PitchMessage } from './pitch-processor';
 import { PitchTracker, type TrackedPitch } from './pitch-tracker';
+import { getAudioContext, setAudioSession } from './context';
 
 export type { PitchMessage, TrackedPitch };
 
-export type SourceKind = 'mic' | 'test';
+/** mic: マイク / test: テスト信号 / node: 任意の音声ノード (お手本ボーカルでの自己テスト用) */
+export type SourceKind = 'mic' | 'test' | 'node';
 
 export interface EngineInfo {
   sampleRate: number;
@@ -34,32 +35,23 @@ export class PitchEngine {
     return this.ctx?.currentTime ?? 0;
   }
 
+  get running(): boolean {
+    return this.node != null;
+  }
+
   onPitch(fn: (m: TrackedPitch) => void): () => void {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
 
   /** 必ずユーザー操作 (タップ) のイベントハンドラ内から呼ぶこと */
-  async start(kind: SourceKind): Promise<EngineInfo> {
+  async start(kind: SourceKind, input?: AudioNode): Promise<EngineInfo> {
     await this.stop();
     this.tracker.reset();
+    this.history.length = 0;
 
-    // iOS: マナーモードでも音を出し、マイクと再生を同時に使えるようにする (Safari 16.4+)
-    const nav = navigator as Navigator & { audioSession?: { type: string } };
-    if (nav.audioSession) {
-      try {
-        nav.audioSession.type = kind === 'mic' ? 'play-and-record' : 'playback';
-      } catch {
-        /* 未対応なら無視 */
-      }
-    }
-
-    if (!this.ctx) {
-      this.ctx = new AudioContext({ latencyHint: 'interactive' });
-      await this.ctx.audioWorklet.addModule(processorUrl);
-    }
-    const ctx = this.ctx;
-    if (ctx.state !== 'running') await ctx.resume();
+    setAudioSession(kind === 'mic' ? 'play-and-record' : 'playback');
+    const ctx = (this.ctx = await getAudioContext());
 
     this.node = new AudioWorkletNode(ctx, 'pitch-processor', {
       numberOfInputs: 1,
@@ -74,19 +66,37 @@ export class PitchEngine {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('このブラウザではマイクを使えません（HTTPS で開いているか確認してください）');
       }
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          // 音程検出の邪魔になる自動処理はすべて切る
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          channelCount: 1,
-        },
-      });
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            // 音程検出の邪魔になる自動処理はすべて切る
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            channelCount: 1,
+          },
+        });
+      } catch (e) {
+        await this.stop();
+        throw e;
+      }
       micSettings = this.stream.getAudioTracks()[0]?.getSettings() ?? null;
       const src = ctx.createMediaStreamSource(this.stream);
       src.connect(this.node);
       this.sourceNodes.push(src);
+    } else if (kind === 'node') {
+      if (!input) throw new Error('入力ノードがありません');
+      input.connect(this.node);
+      const node = this.node;
+      // stop() で切断するのは解析ノードへの接続だけ (input 自体は他でも使われている)
+      const detach = () => {
+        try {
+          input.disconnect(node);
+        } catch {
+          /* 先に input 側が切断済み */
+        }
+      };
+      this.sourceNodes.push({ disconnect: detach } as unknown as AudioNode);
     } else {
       this.startTestSignal(ctx, this.node);
     }
